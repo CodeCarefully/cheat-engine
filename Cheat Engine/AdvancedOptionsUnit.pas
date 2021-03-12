@@ -17,7 +17,9 @@ uses
 
   symbolhandler,symbolhandlerstructs,LCLIntf, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons,CEDebugger, Menus,CEFuncProc, ExtCtrls,disassembler,
-  SyncObjs,registry, ComCtrls, LResources,NewKernelHandler{$ifdef windows},win32proc{$endif}, betterControls;
+  SyncObjs,registry, ComCtrls, LResources,NewKernelHandler{$ifdef windows},win32proc{$endif},
+  DPIHelper,
+  betterControls;
 
 
 
@@ -1030,7 +1032,7 @@ begin
       pausebutton.Hint:=rsPauseTheGame+pausehotkeystring;
 
       timer1.Enabled:=false;
-      mainform.ProcessLabel.Font.Color:=clMenuText;
+      mainform.ProcessLabel.Font.Color:=clWindowtext;
       mainform.ProcessLabel.Caption:=plabel;
     end;
 
@@ -1157,6 +1159,8 @@ begin
 
   setlength(x,0);
   loadedFormPosition:=loadformposition(self,x);
+
+  DPIHelper.AdjustSpeedButtonSize(Pausebutton);
 end;
 
 procedure TAdvancedOptions.Button2Click(Sender: TObject);

@@ -602,6 +602,13 @@ begin
     begin
       if (name=token) then
       begin
+        if lua_isnil(Luavm,-1) then
+        begin
+          lua_pop(LuaVM,1);
+          inc(i);
+          continue;
+        end;
+
         result:=true;
         break;   //leave the value on the stack
       end
@@ -893,10 +900,6 @@ begin
         //means nothing was found
         exit;
       end;
-
-
-
-
 
       if hintwindow=nil then
         hintwindow:=THintWindow.Create(self);
@@ -1613,7 +1616,7 @@ begin
   if savedialog1.Execute then
   begin
     mscript.lines.SaveToFile(savedialog1.filename);
-    frmLuaEngine.Caption:=rsLuaEngine+' '+ExtractFileNameOnly(savedialog1.filename);
+    Caption:=rsLuaEngine+' '+ExtractFileNameOnly(savedialog1.filename);
   end;
 end;
 

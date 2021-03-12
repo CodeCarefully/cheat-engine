@@ -69,7 +69,7 @@ type
     MenuItem12: TMenuItem;
     MenuItem13: TMenuItem;
     MenuItem14: TMenuItem;
-    DBVMFindoutwhataddressesthisinstructionaccesses: TMenuItem;
+    miDBVMFindoutwhataddressesthisinstructionaccesses: TMenuItem;
     Showdebugtoolbar1: TMenuItem;
     miCopyAddressesOnly: TMenuItem;
     miHideToolbar: TMenuItem;
@@ -342,7 +342,7 @@ type
     procedure MenuItem11Click(Sender: TObject);
     procedure MenuItem12Click(Sender: TObject);
     procedure MenuItem14Click(Sender: TObject);
-    procedure DBVMFindoutwhataddressesthisinstructionaccessesClick(Sender: TObject);
+    procedure miDBVMFindoutwhataddressesthisinstructionaccessesClick(Sender: TObject);
     procedure MenuItem4Click(Sender: TObject);
     procedure miOpenInDissectDataClick(Sender: TObject);
     procedure miShowSectionAddressesClick(Sender: TObject);
@@ -811,8 +811,16 @@ begin
 end;
 
 procedure TMemoryBrowser.setShowDebugPanels(state: boolean);
+var
+  oldstackwidth: integer;
+  oldpanel3width: integer;
+
+  cw: integer;
+  ew: integer;
 begin
-  if state then
+  oldstackwidth:=pnlStacktrace.Width;
+  oldpanel3width:=panel3.width;
+  {if state then
   begin
     //resizing should change the stack, not the hexview
     panel3.Align:=alLeft;
@@ -826,7 +834,7 @@ begin
     pnlStacktrace.align:=alRight;
     splitter3.Align:=alRight;
     panel3.Align:=alclient;
-  end;
+  end; }
 
   FShowDebugPanels:=state;
   registerview.Visible:=state;
@@ -834,7 +842,7 @@ begin
   splitter2.Visible:=state;
   splitter3.Visible:=state;
 
-
+  pnlStacktrace.width:=oldstackwidth;
 end;
 
 procedure TMemoryBrowser.SetStacktraceSize(size: integer);
@@ -1175,7 +1183,7 @@ begin
   EnableWindowsSymbols(true);
 end;
 
-procedure TMemoryBrowser.DBVMFindoutwhataddressesthisinstructionaccessesClick(Sender: TObject);
+procedure TMemoryBrowser.miDBVMFindoutwhataddressesthisinstructionaccessesClick(Sender: TObject);
 begin
   DBVMFindwhatThiscodeAccesses(disassemblerview.SelectedAddress);
 end;
@@ -1267,7 +1275,7 @@ begin
   begin
     VA:=disassemblerview.SelectedAddress;
 
-    if GetPhysicalAddress(processhandle,pointer(VA),int64(PA)) then
+    if GetPhysicalAddress(processhandle,pointer(VA),PA) then
       dbvm_cloak_activate(PA,VA);
   end;
   {$endif}
@@ -3976,12 +3984,19 @@ var
   PA: qword;
   bo: integer;
 begin
-  //first check if it's a dbvm changeregonbp bp, and if so, disable it
+  //first check if it's a cloaked dbvm bp, and if so, disable it
   if dbvm_isBreakpoint(disassemblerview.SelectedAddress, PA, BO, b) then
   begin
     if bo=1 then //changeregonbp
     begin
       dbvm_cloak_removechangeregonbp(PA);
+      disassemblerview.Update;
+      exit;
+    end;
+
+    if bo=4 then //break and trace
+    begin
+      dbvm_cloak_traceonbp_remove(PA);
       disassemblerview.Update;
       exit;
     end;
@@ -4378,8 +4393,8 @@ begin
 
   miAddToTheCodelist.visible:=not inadvancedoptions;
 
-  DBVMFindoutwhataddressesthisinstructionaccesses.visible:={$ifdef windows}isDBVMCapable and miSetSpecificBreakpoint.visible{$else}false{$endif};
-  DBVMFindoutwhataddressesthisinstructionaccesses.enabled:=DBVMFindoutwhataddressesthisinstructionaccesses.visible and DBKLoaded;
+  miDBVMFindoutwhataddressesthisinstructionaccesses.visible:={$ifdef windows}isDBVMCapable and miSetSpecificBreakpoint.visible{$else}false{$endif};
+  miDBVMFindoutwhataddressesthisinstructionaccesses.enabled:=miDBVMFindoutwhataddressesthisinstructionaccesses.visible and DBKLoaded;
 
   //
   miSetBreakpointHW.enabled:=(CurrentDebuggerInterface=nil) or (dbcHardwareBreakpoint in CurrentDebuggerInterface.DebuggerCapabilities);
@@ -4736,36 +4751,37 @@ begin
     s:=disassemble(address2);
 
     //spawn a DBVM watch config screen where the user can select options like lock memory
-    if frmDBVMWatchConfig=nil then
-      frmDBVMWatchConfig:=TfrmDBVMWatchConfig.create(self);
+    if frmDBVMWatchConfigFindWhatCodeAccesses=nil then
+      frmDBVMWatchConfigFindWhatCodeAccesses:=TfrmDBVMWatchConfig.create(self);
 
-    frmDBVMWatchConfig.address:=address;
-    frmDBVMWatchConfig.rbExecuteAccess.checked:=true;
-    frmDBVMWatchConfig.gbAccessType.visible:=false;
+    frmDBVMWatchConfigFindWhatCodeAccesses.address:=address;
+    frmDBVMWatchConfigFindWhatCodeAccesses.rbExecuteAccess.checked:=true;
+    frmDBVMWatchConfigFindWhatCodeAccesses.gbAccessType.visible:=false;
 
-    frmDBVMWatchConfig.cbMultipleRIP.checked:=true;
-    frmDBVMWatchConfig.cbMultipleRIP.Visible:=false;
-    frmDBVMWatchConfig.cbWholePage.Visible:=false;
+    frmDBVMWatchConfigFindWhatCodeAccesses.cbMultipleRIP.checked:=true;
+    frmDBVMWatchConfigFindWhatCodeAccesses.cbMultipleRIP.Visible:=false;
+    frmDBVMWatchConfigFindWhatCodeAccesses.cbWholePage.Visible:=false;
 
-    if frmDBVMWatchConfig.showmodal=mrok then
+    if frmDBVMWatchConfigFindWhatCodeAccesses.showmodal=mrok then
     begin
-      if frmDBVMWatchConfig.LockPage then
+      if frmDBVMWatchConfigFindWhatCodeAccesses.LockPage then
         unlockaddress:=LockMemory(processid, address and QWORD($fffffffffffff000),4096)
       else
         unlockaddress:=0;
 
-      id:=dbvm_watch_executes(frmDBVMWatchConfig.PhysicalAddress, address2-address, frmDBVMWatchConfig.Options, frmDBVMWatchConfig.MaxEntries);
+      id:=dbvm_watch_executes(frmDBVMWatchConfigFindWhatCodeAccesses.PhysicalAddress, address2-address, frmDBVMWatchConfigFindWhatCodeAccesses.Options, frmDBVMWatchConfigFindWhatCodeAccesses.MaxEntries);
 
       if (id<>-1) then
       begin
         //spawn a frmchangedaddresses
         frmchangedaddresses:=tfrmChangedAddresses.Create(application);
 
-        if frmDBVMWatchConfig.LockPage then
+        if frmDBVMWatchConfigFindWhatCodeAccesses.LockPage then
           unlockaddress:=LockMemory(processid, address and QWORD($fffffffffffff000),4096)
         else
           unlockaddress:=0;
 
+        frmchangedaddresses.address:=address;
 
         frmchangedaddresses.dbvmwatchid:=id;
         frmchangedaddresses.dbvmwatch_unlock:=unlockaddress;
@@ -4802,9 +4818,6 @@ begin
         MessageDlg('dbvm_watch failed', mtError, [mbok],0);
 
     end;
-    freeandnil(frmDBVMWatchConfig);
-
-
   end;
   {$endif}
 end;
